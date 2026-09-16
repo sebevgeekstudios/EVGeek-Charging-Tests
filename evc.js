@@ -28,7 +28,7 @@
 (function boot() {
   "use strict";
 
-  var VERSION = "1.3.0";
+  var VERSION = "1.4.0";
   var MOUNT_ID = "evc-mount";
   var STYLE_ID = "evc-style";
 
@@ -67,7 +67,10 @@
   <div class="evc-card" id="evc-card">
     <div class="evc-plot" id="evc-plot">
       <svg id="evc-svg" role="img" aria-label="EV charging curves"></svg>
-      <div class="evc-tip" id="evc-tip" role="status" aria-live="polite"></div>
+      <!-- No live region: the crosshair updates continuously, so announcing it would
+           read all eight rows aloud on every pointer move. The Table view is the
+           accessible route to the same numbers. -->
+      <div class="evc-tip" id="evc-tip"></div>
       <div class="evc-empty" id="evc-empty" hidden></div>
     </div>
     <table class="evc-table" id="evc-table" hidden></table>
@@ -934,21 +937,31 @@
     try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), curve: curve, spec: spec })); } catch (e) {}
   }
 
-  function apply(curveCsv, specCsv, stamp) {
+  /* status: "live" | "checking" (painted from cache, refresh in flight) |
+     a timestamp (cache is all we have, Sheets was unreachable) */
+  function apply(curveCsv, specCsv, status) {
     var series = buildSeries(curveCsv);
     if (!series.length) throw new Error("no rows");
     state.series = series;
     state.specs = specCsv ? buildSpecs(specCsv) : [];
     linkSpecs(series, state.specs);
-    state.hidden = {};
+    /* state.hidden is deliberately NOT reset: a background refresh must not
+       switch vehicles back on that the reader has just switched off. It's keyed
+       by name, so a new vehicle still arrives visible. */
     syncWidth();          /* the legend's layout depends on the class, so set it first */
     renderLegend();
     renderSpecs();
     applyView();
-    var when = stamp ? new Date(stamp) : null;
-    note(series.length + " charging sessions" + (when
-      ? " · showing saved data from " + when.toLocaleDateString() + " (couldn't reach Google Sheets)"
-      : " · live from Google Sheets"));
+    setNote(series.length, status);
+  }
+
+  function setNote(count, status) {
+    var tail;
+    if (status === "live") tail = " · live from Google Sheets";
+    else if (status === "checking") tail = " · from your last visit, checking for updates…";
+    else tail = " · showing saved data from " + new Date(status).toLocaleDateString() +
+               " (couldn't reach Google Sheets)";
+    note(count + " charging sessions" + tail);
   }
 
   function failHard(err) {
@@ -968,19 +981,40 @@
     els.note.appendChild(a);
   }
 
+  /* Stale-while-revalidate: paint the last good copy immediately, then refresh
+     in the background. Sheets takes ~0.7-1.4s to answer two tabs on a good
+     connection, and that used to be dead time on every single visit. A repeat
+     visitor now sees the chart at once and a slow or flaky Sheets response
+     becomes invisible instead of a wait. */
   function load() {
     els.empty.hidden = true;
-    els.card.classList.add("evc-loading");
-    note("Loading charging data…");
+
+    var cached = readCache();
+    var painted = false;
+    if (cached) {
+      try { apply(cached.curve, cached.spec, "checking"); painted = true; } catch (e) { painted = false; }
+    }
+    if (!painted) {
+      els.card.classList.add("evc-loading");
+      note("Loading charging data…");
+    }
+
     Promise.all([
       fetchCsv(CURVE_GID),
       fetchCsv(SPEC_GID).catch(function () { return ""; })
     ]).then(function (res) {
       els.card.classList.remove("evc-loading");
-      apply(res[0], res[1], null);
+      /* Unchanged data is the common case. Re-rendering it would rebuild the
+         legend and steal focus for no reason, so only the status line moves. */
+      if (painted && cached && res[0] === cached.curve && res[1] === cached.spec) {
+        setNote(state.series.length, "live");
+      } else {
+        apply(res[0], res[1], "live");
+      }
       writeCache(res[0], res[1]);
     }).catch(function (err) {
       els.card.classList.remove("evc-loading");
+      if (painted) { setNote(state.series.length, cached.at); return; }
       var c = readCache();
       if (c) { try { apply(c.curve, c.spec, c.at); return; } catch (e) {} }
       failHard(err);
