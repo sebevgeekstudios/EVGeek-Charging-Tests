@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EV Charging Curves — preview</title>
+<style>
+  body { background:#f2f2f2; color:#0b0b0b; margin:0; padding:28px 20px 60px;
+         font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }
+  h1   { font-size:26px; margin:0 0 4px; letter-spacing:-.01em; }
+  .sub { margin:0 0 22px; color:#52514e; font-size:14px; max-width:72ch; line-height:1.5; }
+  .sub code { background:#e6e6e4; padding:1px 5px; border-radius:4px; font-size:13px; }
+  @media (max-width:640px) { body { padding:18px 12px 40px } h1 { font-size:21px } }
+</style>
+</head>
+<body>
+
+<h1>EV Charging Tests</h1>
+<p class="sub">
+  Live preview of the widget, served straight from this repository. What you see
+  here is what the Squarespace page will show once its cache refreshes — so check
+  a change here first. The version running is in <code>data-evc-ready</code> on
+  the mount below.
+</p>
+
+<!-- Exactly what the Squarespace code block contains, but pointing at the local copy. -->
+<div id="evc-mount"></div>
+<script src="./evc.js" defer></script>
+
+</body>
+</html>
