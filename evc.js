@@ -28,7 +28,7 @@
 (function boot() {
   "use strict";
 
-  var VERSION = "1.4.0";
+  var VERSION = "1.5.0";
   var MOUNT_ID = "evc-mount";
   var STYLE_ID = "evc-style";
 
@@ -134,14 +134,16 @@
 .evc-chip:focus-visible{outline:2px solid var(--s1);outline-offset:2px}
 .evc-chip[aria-pressed="false"]{opacity:.42;background:transparent}
 .evc-chip[aria-pressed="false"] .evc-chip-peak{opacity:0}
-.evc-key{flex:none;width:18px;height:0;border-top-width:3px;border-top-style:solid;border-radius:2px}
+.evc-linekey{flex:none;overflow:visible;vertical-align:middle;align-self:center}
 .evc-chip-peak{font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums}
 
 /* ---- chart card ----------------------------------------------------- */
 .evc-card{position:relative;background:var(--surface-1);border:1px solid var(--ring);border-radius:14px;padding:10px 6px 4px}
 .evc-plot{position:relative}
-.evc-card svg{display:block;width:100%;height:auto;touch-action:pan-y}
-.evc-card svg:focus-visible{outline:2px solid var(--s1);outline-offset:-2px;border-radius:10px}
+/* scoped to the chart itself: the legend/tooltip keys are SVGs inside this card
+   too, and a blanket "svg{width:100%}" would stretch them across the row */
+.evc-plot > svg{display:block;width:100%;height:auto;touch-action:pan-y}
+.evc-plot > svg:focus-visible{outline:2px solid var(--s1);outline-offset:-2px;border-radius:10px}
 
 .evc-gridline{stroke:var(--grid);stroke-width:1}
 .evc-axisline{stroke:var(--axis);stroke-width:1}
@@ -160,7 +162,6 @@
 .evc-tip-head{font-size:11.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-2)}
 .evc-tip-cols{font-size:11px;color:var(--muted);margin:1px 0 6px;padding-bottom:5px;border-bottom:1px solid var(--grid)}
 .evc-tip-row{display:flex;align-items:baseline;gap:8px;padding:2px 0}
-.evc-tip-key{flex:none;width:14px;height:0;border-top-width:3px;border-top-style:solid;border-radius:2px;transform:translateY(-4px)}
 .evc-tip-val{flex:none;font-weight:700;font-variant-numeric:tabular-nums;min-width:52px}
 .evc-tip-2nd{flex:none;min-width:50px;color:var(--ink-2);font-size:12px;font-variant-numeric:tabular-nums;text-align:right}
 .evc-tip-name{color:var(--muted);font-size:12.5px;line-height:1.25;white-space:nowrap}
@@ -176,7 +177,7 @@
   border-bottom:1px solid var(--axis)}
 .evc-table thead th:first-child{z-index:3}
 .evc-table td{color:var(--ink-2)}
-.evc-swatch{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.evc-table th .evc-linekey{margin-right:6px}
 
 /* ---- status / empty -------------------------------------------------- */
 .evc-cap{margin:10px 2px 0;font-size:13px;color:var(--ink-2)}
@@ -199,7 +200,7 @@
 .evc-specgrid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(258px,1fr))}
 .evc-spec{background:var(--surface-1);border:1px solid var(--ring);border-radius:12px;padding:13px 15px}
 .evc-spec-name{font-weight:700;font-size:14px;line-height:1.3;margin-bottom:9px;display:flex;gap:8px;align-items:baseline}
-.evc-spec-name .evc-swatch{flex:none;transform:translateY(-3px)}
+.evc-spec-name .evc-linekey{flex:none}
 .evc-spec dl{margin:0;display:grid;grid-template-columns:1fr auto;gap:4px 12px}
 .evc-spec dt{color:var(--muted);font-size:12.5px}
 .evc-spec dd{margin:0;font-size:12.5px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
@@ -218,7 +219,7 @@
    with wrapping labels keeps every vehicle visible in a quarter of the space. */
 .evc.is-narrow .evc-legend{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .evc.is-narrow .evc-chip{align-items:flex-start;border-radius:9px;padding:6px 9px;font-size:11.5px;line-height:1.25;text-align:left}
-.evc.is-narrow .evc-chip .evc-key{margin-top:6px;width:14px}
+.evc.is-narrow .evc-chip .evc-linekey{align-self:flex-start;margin-top:4px}
 .evc.is-narrow .evc-chip-peak{display:none}
 .evc.is-narrow .evc-card{padding:8px 4px 2px;border-radius:12px}
 /* On phones the readout sits under the chart instead of over it, so it can
@@ -228,7 +229,6 @@
   border-radius:0;margin:4px 4px 0;padding:8px 4px 2px;max-width:none;min-width:0}
 .evc.is-narrow .evc-tip-rows{display:grid;grid-template-columns:minmax(0,1fr)}
 .evc.is-narrow .evc-tip-row{align-items:center;overflow:hidden;padding:1px 0}
-.evc.is-narrow .evc-tip-key{transform:none}
 .evc.is-narrow .evc-tip-val{min-width:48px;font-size:13px}
 .evc.is-narrow .evc-tip-2nd{min-width:46px;font-size:11.5px}
 /* One full-width line per series — at two columns the names truncated to
@@ -264,7 +264,8 @@
      which others are hidden. Past 8 vehicles the hues repeat with a dash
      pattern, so identity never rests on colour alone. */
   var HUES = ["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#4a3aa7","#e34948"];
-  var DASH = ["", "7 5", "2 4", "11 4 2 4"];
+  /* run patterns within one car, in order: solid, dashed, dotted, dash-dot, fine */
+  var DASHES = ["", "7 5", "2 4", "11 4 2 4", "1 3"];
 
   var NS = "http://www.w3.org/2000/svg";
   var root = document.getElementById("evc");
@@ -300,6 +301,24 @@
     return n;
   }
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+
+  /* Dash now carries meaning (which run of a car), so a key has to draw the
+     real pattern. CSS border-style can't: it has no dash-dot, and its dashes
+     don't match SVG's. Every key is therefore a tiny SVG using the very same
+     stroke-dasharray as the line it stands for. */
+  function lineKey(s, w) {
+    w = w || 18;
+    var svg = el("svg", {
+      class: "evc-linekey", width: w, height: 8,
+      viewBox: "0 0 " + w + " 8", "aria-hidden": "true"
+    });
+    svg.appendChild(el("line", {
+      x1: 1, y1: 4, x2: w - 1, y2: 4,
+      stroke: s.color, "stroke-width": 3, "stroke-linecap": "round",
+      "stroke-dasharray": s.dash || null
+    }));
+    return svg;
+  }
 
   function parseCSV(text) {
     var rows = [], row = [], field = "", q = false, i, c;
@@ -390,11 +409,9 @@
       if (note) byName[name].notes[note] = 1;
     }
 
-    return order.map(function (name, i) {
+    return assignStyles(order.map(function (name) {
       var s = byName[name];
       s.pts.sort(function (a, b) { return a.soc - b.soc; });
-      s.color = HUES[i % HUES.length];
-      s.dash = DASH[Math.floor(i / HUES.length) % DASH.length];
       s.note = Object.keys(s.notes).join(" · ");
 
       var peak = 0, peakSoc = null, j;
@@ -411,6 +428,42 @@
       s.socMin = s.pts.length ? s.pts[0].soc : null;
       s.socMax = s.pts.length ? s.pts[s.pts.length - 1].soc : null;
       return s;
+    }));
+  }
+
+  /* Hue identifies the CAR; dash identifies which run of it.
+     Three Ioniq 5 sessions read as one blue family rather than three unrelated
+     colours, which is the comparison this page exists to make — and it stretches
+     eight validated hues across far more than eight runs, since the palette only
+     advances when a genuinely different car appears.
+
+     The car is the name with its trailing "(...)" removed, then normalised the
+     same way spec names are, so "2026 Kia EV9" and "2026 Kia EV9 Long Range"
+     are recognised as one car rather than two. */
+  function carKey(name) {
+    return specKey(name.replace(/\s*\([^)]*\)\s*$/, ""));
+  }
+
+  function assignStyles(series) {
+    var hueOf = {}, runsOf = {}, cars = [];
+    series.forEach(function (s) {
+      s.car = carKey(s.name);
+      if (!(s.car in hueOf)) {
+        hueOf[s.car] = HUES[cars.length % HUES.length];
+        runsOf[s.car] = 0;
+        cars.push(s.car);
+      }
+      s.color = hueOf[s.car];
+      s.dash = DASHES[runsOf[s.car] % DASHES.length];
+      s.runIndex = runsOf[s.car]++;
+    });
+    /* Group runs of the same car together so the shared hue is obvious at a
+       glance. Cars keep their first-appearance order, as do runs within a car,
+       so this only regroups the list — it never changes which colour a vehicle
+       gets. */
+    return series.slice().sort(function (a, b) {
+      var d = cars.indexOf(a.car) - cars.indexOf(b.car);
+      return d !== 0 ? d : a.runIndex - b.runIndex;
     });
   }
 
@@ -718,10 +771,7 @@
     var box = h("div", "evc-tip-rows");
     for (i = 0; i < rows.length; i++) {
       var row = h("div", "evc-tip-row");
-      var key = h("span", "evc-tip-key");
-      key.style.borderTopColor = rows[i].s.color;
-      if (rows[i].s.dash) key.style.borderTopStyle = "dashed";
-      row.appendChild(key);
+      row.appendChild(lineKey(rows[i].s, 14));
       row.appendChild(h("span", "evc-tip-val", Math.round(rows[i].p.kw) + " kW"));
       for (var c = 0; c < cols.length; c++) {
         var cell = h("span", "evc-tip-2nd", cols[c].get(rows[i].s, rows[i].p));
@@ -769,10 +819,7 @@
       var btn = h("button", "evc-chip");
       btn.type = "button";
       btn.setAttribute("aria-pressed", state.hidden[s.name] ? "false" : "true");
-      var k = h("span", "evc-key");
-      k.style.borderTopColor = s.color;
-      if (s.dash) k.style.borderTopStyle = "dashed";
-      btn.appendChild(k);
+      btn.appendChild(lineKey(s, 18));
       btn.appendChild(h("span", null, s.name));
       /* headline summary: how hard it charges, how long 10–80% took, and what
          that bought you in rated miles */
@@ -808,9 +855,7 @@
     tr.appendChild(h("th", null, state.xMode === "soc" ? "SoC" : "Min"));
     vis.forEach(function (s) {
       var th = h("th");
-      var sw = h("span", "evc-swatch");
-      sw.style.background = s.color;
-      th.appendChild(sw);
+      th.appendChild(lineKey(s, 14));
       th.appendChild(document.createTextNode(s.name));
       tr.appendChild(th);
     });
@@ -861,9 +906,7 @@
       var card = h("div", "evc-spec");
       var name = h("div", "evc-spec-name");
       if (sp.series) {
-        var sw = h("span", "evc-swatch");
-        sw.style.background = sp.series.color;
-        name.appendChild(sw);
+        name.appendChild(lineKey(sp.series, 16));
       }
       name.appendChild(document.createTextNode(sp.name));
       card.appendChild(name);
