@@ -28,7 +28,7 @@
 (function boot() {
   "use strict";
 
-  var VERSION = "1.5.0";
+  var VERSION = "1.6.0";
   var MOUNT_ID = "evc-mount";
   var STYLE_ID = "evc-style";
 
@@ -264,7 +264,10 @@
      which others are hidden. Past 8 vehicles the hues repeat with a dash
      pattern, so identity never rests on colour alone. */
   var HUES = ["#2a78d6","#eb6834","#1baf7a","#eda100","#e87ba4","#008300","#4a3aa7","#e34948"];
-  /* run patterns within one car, in order: solid, dashed, dotted, dash-dot, fine */
+  /* Run patterns within one car, in order: solid, dashed, dotted, dash-dot, fine.
+     PRIMARY_RUN decides which run gets the solid line — rename a session in the
+     sheet to move it, e.g. call it "(Best Run)". */
+  var PRIMARY_RUN = /\bbest\b/i;
   var DASHES = ["", "7 5", "2 4", "11 4 2 4", "1 3"];
 
   var NS = "http://www.w3.org/2000/svg";
@@ -444,27 +447,44 @@
     return specKey(name.replace(/\s*\([^)]*\)\s*$/, ""));
   }
 
+  /* The bit in trailing brackets: "(Best Run)", "(Tesla Supercharger)". */
+  function runLabel(name) {
+    var m = name.match(/\(([^)]*)\)\s*$/);
+    return m ? m[1] : "";
+  }
+
   function assignStyles(series) {
-    var hueOf = {}, runsOf = {}, cars = [];
+    var cars = [], runs = {};
     series.forEach(function (s) {
       s.car = carKey(s.name);
-      if (!(s.car in hueOf)) {
-        hueOf[s.car] = HUES[cars.length % HUES.length];
-        runsOf[s.car] = 0;
-        cars.push(s.car);
-      }
-      s.color = hueOf[s.car];
-      s.dash = DASHES[runsOf[s.car] % DASHES.length];
-      s.runIndex = runsOf[s.car]++;
+      if (!(s.car in runs)) { runs[s.car] = []; cars.push(s.car); }
+      runs[s.car].push(s);
     });
-    /* Group runs of the same car together so the shared hue is obvious at a
-       glance. Cars keep their first-appearance order, as do runs within a car,
-       so this only regroups the list — it never changes which colour a vehicle
-       gets. */
-    return series.slice().sort(function (a, b) {
-      var d = cars.indexOf(a.car) - cars.indexOf(b.car);
-      return d !== 0 ? d : a.runIndex - b.runIndex;
+
+    var out = [];
+    cars.forEach(function (car, ci) {
+      var hue = HUES[ci % HUES.length];
+      /* A car's reference run takes the solid line, whatever order the sheet
+         happens to list it in — the Kia's "(Best Run)" rows sit below its
+         Supercharger rows, and solid should still mean "this is the car at its
+         best". Everything else keeps sheet order behind it (sort is stable).
+
+         Deliberately keyed off the NAME, not off which run is actually fastest:
+         ranking would repaint an existing line the moment a quicker session was
+         added, and a line's appearance should belong to the run, not to its
+         current standing. */
+      var ordered = runs[car].slice().sort(function (a, b) {
+        return (PRIMARY_RUN.test(runLabel(b.name)) ? 1 : 0) -
+               (PRIMARY_RUN.test(runLabel(a.name)) ? 1 : 0);
+      });
+      ordered.forEach(function (s, ri) {
+        s.color = hue;
+        s.dash = DASHES[ri % DASHES.length];
+        s.runIndex = ri;
+        out.push(s);   /* built car-by-car, so the legend groups itself */
+      });
     });
+    return out;
   }
 
   /* linear interpolation of elapsed time at a given SoC */
