@@ -28,7 +28,7 @@
 (function boot() {
   "use strict";
 
-  var VERSION = "1.1.0";
+  var VERSION = "1.3.0";
   var MOUNT_ID = "evc-mount";
   var STYLE_ID = "evc-style";
 
@@ -107,7 +107,10 @@
   -webkit-text-size-adjust:100%;
 }
 .evc *,.evc *::before,.evc *::after{box-sizing:border-box}
-.evc button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* :where() keeps this reset at (0,1,0) so the component rules below can still
+   set their own font-size. As ".evc button" it was (0,1,1) and silently beat
+   every .evc-segbtn / .evc-chip font-size, inflating the legend. */
+.evc :where(button){font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
 
 /* ---- control bar ---------------------------------------------------- */
 .evc-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 12px}
@@ -187,7 +190,9 @@
 
 /* ---- specs ----------------------------------------------------------- */
 .evc-specs{margin-top:28px}
-.evc-h3{font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);margin:0 0 12px}
+/* pinned: Squarespace styles h1-h6 directly, and a direct rule beats an
+   inherited one, so without this the heading silently takes the site font */
+.evc-h3{font-family:inherit;font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);margin:0 0 12px}
 .evc-specgrid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(258px,1fr))}
 .evc-spec{background:var(--surface-1);border:1px solid var(--ring);border-radius:12px;padding:13px 15px}
 .evc-spec-name{font-weight:700;font-size:14px;line-height:1.3;margin-bottom:9px;display:flex;gap:8px;align-items:baseline}
@@ -196,35 +201,39 @@
 .evc-spec dt{color:var(--muted);font-size:12.5px}
 .evc-spec dd{margin:0;font-size:12.5px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
 
-@media (max-width:640px){
-  .evc{font-size:14px}
-  .evc-bar{gap:8px}
-  .evc-segbtn{padding:7px 11px;font-size:13px}
-  .evc-bar-end{margin-left:0;width:100%}
-  /* 8 full-width pills pushed the chart off the first screen — two columns
-     with wrapping labels keeps every vehicle visible in a quarter of the space. */
-  .evc-legend{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-  .evc-chip{align-items:flex-start;border-radius:9px;padding:6px 9px;font-size:11.5px;line-height:1.25;text-align:left}
-  .evc-chip .evc-key{margin-top:6px;width:14px}
-  .evc-chip-peak{display:none}
-  .evc-card{padding:8px 4px 2px;border-radius:12px}
-  /* On phones the readout sits under the chart instead of over it, so it can
-     never hide the peak it is describing, and the height is reserved so
-     nothing jumps as you drag. */
-  .evc-tip{position:static;opacity:1;transform:none;box-shadow:none;border:0;border-top:1px solid var(--grid);
-    border-radius:0;margin:4px 4px 0;padding:8px 4px 2px;max-width:none;min-width:0}
-  .evc-tip-rows{display:grid;grid-template-columns:minmax(0,1fr)}
-  .evc-tip-row{align-items:center;overflow:hidden;padding:1px 0}
-  .evc-tip-key{transform:none}
-  .evc-tip-val{min-width:48px;font-size:13px}
-  .evc-tip-2nd{min-width:46px;font-size:11.5px}
-  /* One full-width line per series — at two columns the names truncated to
-     "Hyundai Ioniq…" three times over. Height is reserved in JS from the
-     series count so nothing shifts as you drag. */
-  .evc-tip-name{font-size:11.5px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .evc-tip-hint{color:var(--muted);font-size:12.5px;padding-top:2px}
-  .evc-specgrid{grid-template-columns:1fr}
-}
+/* Narrow layout is driven by the WIDTH OF THIS BLOCK, not the viewport.
+   Inside a Squarespace code block the two are very different - a 700px window
+   leaves the block only ~616px - so a viewport media query put a 616px chart
+   into the desktop layout and doubled the height of the legend. The class is
+   set from JS off the same measurement the chart itself uses, so CSS and JS can
+   never disagree about which layout is active. */
+.evc.is-narrow{font-size:14px}
+.evc.is-narrow .evc-bar{gap:8px}
+.evc.is-narrow .evc-segbtn{padding:7px 11px;font-size:13px}
+.evc.is-narrow .evc-bar-end{margin-left:0;width:100%}
+/* 8 full-width pills pushed the chart off the first screen — two columns
+   with wrapping labels keeps every vehicle visible in a quarter of the space. */
+.evc.is-narrow .evc-legend{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.evc.is-narrow .evc-chip{align-items:flex-start;border-radius:9px;padding:6px 9px;font-size:11.5px;line-height:1.25;text-align:left}
+.evc.is-narrow .evc-chip .evc-key{margin-top:6px;width:14px}
+.evc.is-narrow .evc-chip-peak{display:none}
+.evc.is-narrow .evc-card{padding:8px 4px 2px;border-radius:12px}
+/* On phones the readout sits under the chart instead of over it, so it can
+   never hide the peak it is describing, and the height is reserved so
+   nothing jumps as you drag. */
+.evc.is-narrow .evc-tip{position:static;opacity:1;transform:none;box-shadow:none;border:0;border-top:1px solid var(--grid);
+  border-radius:0;margin:4px 4px 0;padding:8px 4px 2px;max-width:none;min-width:0}
+.evc.is-narrow .evc-tip-rows{display:grid;grid-template-columns:minmax(0,1fr)}
+.evc.is-narrow .evc-tip-row{align-items:center;overflow:hidden;padding:1px 0}
+.evc.is-narrow .evc-tip-key{transform:none}
+.evc.is-narrow .evc-tip-val{min-width:48px;font-size:13px}
+.evc.is-narrow .evc-tip-2nd{min-width:46px;font-size:11.5px}
+/* One full-width line per series — at two columns the names truncated to
+   "Hyundai Ioniq…" three times over. Height is reserved in JS from the
+   series count so nothing shifts as you drag. */
+.evc.is-narrow .evc-tip-name{font-size:11.5px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.evc.is-narrow .evc-tip-hint{color:var(--muted);font-size:12.5px;padding-top:2px}
+.evc.is-narrow .evc-specgrid{grid-template-columns:1fr}
 @media (prefers-reduced-motion:reduce){
   .evc *{transition:none !important}
 }
@@ -484,16 +493,31 @@
   /* ======================= RENDER ======================= */
   var geom = { w: 800, h: 430, pad: { t: 14, r: 18, b: 44, l: 50 } };
 
+  var NARROW_AT = 640;
+
+  /* The single source of truth for "is this thing narrow?". Everything — the
+     CSS class, the chart's padding and tick density, and where the readout goes
+     — comes from this one measurement of the block itself, so the layout can't
+     end up half in one mode and half in the other.
+
+     Toggling the class cannot feed back into this: .evc is a block-level
+     element whose width comes from its parent, and none of the narrow rules
+     change that, so there is no resize loop. */
+  function syncWidth() {
+    var rw = root.clientWidth || 0;
+    geom.phone = rw > 0 && rw <= NARROW_AT;
+    root.classList.toggle("is-narrow", geom.phone);
+    return rw;
+  }
+
   function measure() {
+    syncWidth();
     var w = els.plot.clientWidth || 800;
-    var narrow = w < 640;
+    var narrow = w < NARROW_AT;
     geom.w = w;
     geom.h = Math.max(260, Math.min(Math.round(w * (narrow ? 0.82 : 0.50)), 470));
     geom.pad = { t: 16, r: narrow ? 14 : 20, b: narrow ? 44 : 48, l: narrow ? 50 : 56 };
     geom.narrow = narrow;
-    /* must track the 640px media query exactly — it decides whether the
-       readout floats over the chart or sits beneath it */
-    geom.phone = window.matchMedia("(max-width: 640px)").matches;
   }
 
   function draw() {
@@ -917,6 +941,7 @@
     state.specs = specCsv ? buildSpecs(specCsv) : [];
     linkSpecs(series, state.specs);
     state.hidden = {};
+    syncWidth();          /* the legend's layout depends on the class, so set it first */
     renderLegend();
     renderSpecs();
     applyView();
@@ -994,8 +1019,10 @@
   });
 
   var rt;
-  function onResize() { clearTimeout(rt); rt = setTimeout(function () { if (state.view === "chart") { draw(); hideTip(); } }, 120); }
-  if (window.ResizeObserver) new ResizeObserver(onResize).observe(els.plot);
+  function onResize() { clearTimeout(rt); rt = setTimeout(function () { syncWidth(); if (state.view === "chart") { draw(); hideTip(); } }, 120); }
+  /* watch the block itself — inside Squarespace it resizes without the window
+     ever changing (sidebars, accordions, editor chrome) */
+  if (window.ResizeObserver) new ResizeObserver(onResize).observe(root);
   window.addEventListener("resize", onResize);
 
   load();
