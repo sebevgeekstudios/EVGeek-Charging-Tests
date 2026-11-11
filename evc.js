@@ -28,7 +28,7 @@
 (function boot() {
   "use strict";
 
-  var VERSION = "1.6.0";
+  var VERSION = "1.7.0";
   var MOUNT_ID = "evc-mount";
   var STYLE_ID = "evc-style";
 
@@ -851,7 +851,7 @@
       btn.addEventListener("click", function () {
         state.hidden[s.name] = !state.hidden[s.name];
         btn.setAttribute("aria-pressed", state.hidden[s.name] ? "false" : "true");
-        hideTip(); draw(); renderTable();
+        hideTip(); draw(); renderTable(); renderSpecs();
       });
       btn.addEventListener("mouseenter", function () { if (!state.hidden[s.name]) { state.focus = s.name; draw(); } });
       btn.addEventListener("mouseleave", function () { state.focus = null; draw(); });
@@ -863,7 +863,7 @@
 
   function setAll(on) {
     state.series.forEach(function (s) { state.hidden[s.name] = !on; });
-    renderLegend(); hideTip(); draw(); renderTable();
+    renderLegend(); hideTip(); draw(); renderTable(); renderSpecs();
   }
 
   /* ======================= TABLE VIEW ======================= */
@@ -919,10 +919,15 @@
 
   /* ======================= SPECS ======================= */
   function renderSpecs() {
-    if (!state.specs.length) { els.specs.hidden = true; return; }
-    els.specs.hidden = false;
+    /* Mirrors the legend: a card is on screen when its run is on the chart.
+       A spec row with no run in the curve data has no chip that could toggle
+       it, so it always shows — filtering it out would leave no way back. */
+    var shown = state.specs.filter(function (sp) {
+      return !sp.series || !state.hidden[sp.series.name];
+    });
+    els.specs.hidden = shown.length === 0;
     clear(els.specgrid);
-    state.specs.forEach(function (sp) {
+    shown.forEach(function (sp) {
       var card = h("div", "evc-spec");
       var name = h("div", "evc-spec-name");
       if (sp.series) {
