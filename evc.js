@@ -28,7 +28,7 @@
 (function boot() {
   "use strict";
 
-  var VERSION = "1.7.0";
+  var VERSION = "1.8.0";
   var MOUNT_ID = "evc-mount";
   var STYLE_ID = "evc-style";
 
@@ -128,14 +128,17 @@
 .evc-sep{font-size:13px}
 
 /* ---- legend --------------------------------------------------------- */
+/* Chips run 354-497px wide, so free wrapping packs them well only once the
+   block is wide enough for two. See the .is-mid rules further down. */
 .evc-legend{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px}
-.evc-chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--ring);background:var(--surface-1);border-radius:999px;padding:6px 13px 6px 10px;font-size:13px;font-weight:600;color:var(--ink);transition:opacity .13s,border-color .13s,background .13s}
+.evc-chip{display:inline-flex;align-items:center;justify-content:flex-start;text-align:left;gap:8px;border:1px solid var(--ring);background:var(--surface-1);border-radius:999px;padding:6px 13px 6px 10px;font-size:13px;font-weight:600;color:var(--ink);transition:opacity .13s,border-color .13s,background .13s}
 .evc-chip:hover{border-color:rgba(11,11,11,.28)}
 .evc-chip:focus-visible{outline:2px solid var(--s1);outline-offset:2px}
 .evc-chip[aria-pressed="false"]{opacity:.42;background:transparent}
 .evc-chip[aria-pressed="false"] .evc-chip-peak{opacity:0}
 .evc-linekey{flex:none;overflow:visible;vertical-align:middle;align-self:center}
-.evc-chip-peak{font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums}
+/* the stats read as one unit - without this "+212 mi" breaks across lines */
+.evc-chip-peak{font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 
 /* ---- chart card ----------------------------------------------------- */
 .evc-card{position:relative;background:var(--surface-1);border:1px solid var(--ring);border-radius:14px;padding:10px 6px 4px}
@@ -204,6 +207,17 @@
 .evc-spec dl{margin:0;display:grid;grid-template-columns:1fr auto;gap:4px 12px}
 .evc-spec dt{color:var(--muted);font-size:12.5px}
 .evc-spec dd{margin:0;font-size:12.5px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+
+/* Mid widths: between 640 and 910px of block, the chips are too wide to fit two
+   per row by free wrapping, so the legend grew taller than the chart it labels
+   — 281px at a 745px block. Uniform columns force two per row and square the
+   chips off, since a 999px pill looks wrong once its name wraps to two lines.
+   Above 910px every chip fits on one line and free wrapping packs tighter than
+   a grid would, so this deliberately stops there. Both bounds were measured
+   against the current chip text; a much longer vehicle name would move the
+   upper one, and the cost of being slightly off is only a taller legend. */
+.evc.is-mid .evc-legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.evc.is-mid .evc-chip{border-radius:12px;padding:7px 13px 7px 10px}
 
 /* Narrow layout is driven by the WIDTH OF THIS BLOCK, not the viewport.
    Inside a Squarespace code block the two are very different - a 700px window
@@ -569,7 +583,8 @@
   /* ======================= RENDER ======================= */
   var geom = { w: 800, h: 430, pad: { t: 14, r: 18, b: 44, l: 50 } };
 
-  var NARROW_AT = 640;
+  var NARROW_AT = 640;   /* at or below this the phone layout applies */
+  var MID_AT = 910;      /* above this the chips fit one line and flex packs tighter */
 
   /* The single source of truth for "is this thing narrow?". Everything — the
      CSS class, the chart's padding and tick density, and where the readout goes
@@ -583,6 +598,7 @@
     var rw = root.clientWidth || 0;
     geom.phone = rw > 0 && rw <= NARROW_AT;
     root.classList.toggle("is-narrow", geom.phone);
+    root.classList.toggle("is-mid", rw > NARROW_AT && rw <= MID_AT);
     return rw;
   }
 
